@@ -59,5 +59,5 @@ cutWithSpace(gets(),command, parameters );
 }
 
 
-
+return 0 ;
 }
