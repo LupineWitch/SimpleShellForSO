@@ -1,4 +1,4 @@
-# Projekt Prosty interpreter poleceń
+# Projekt SO - Prosty interpreter poleceń
 
 ## Opis:
 **[10p]** Zaprojektuj i zaimplementuj prosty interpreter poleceń. Interpreter pobiera ze standardowego wejścia pojedynczy wiersz. Następnie dokonuje prostej analizy wiersza dzieląc go na słowa separowane spacjami. Pierwsze słowo jest nazwą programu, który należy uruchomić (wykorzystując zmienną PATH), a pozostałe są argumentami. Shell uruchamia program i standardowo czeka na zakończenie jego pracy, chyba że ostatnim słowem jest znak & co powoduje uruchomienie programu w tle, jak w normalnym shellu bash. Shell kończy pracę gdy otrzyma znak końca pliku. Dzięki temu możliwe jest przygotowanie prostych skryptów, które można uruchamiać z wiersza poleceń bash-a, jeżeli pierwsza linia skryptu ma postać #!/home/student/moj_shell  (gdzie po ! podaje się ścieżkę do programu shella). Dodatkowe opcje to:
