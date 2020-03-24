@@ -5,7 +5,9 @@
 
 
 a) **[6p]** możliwość przekierowania standardowego wyjścia polecenia przy pomocy >>
+
 b) **[9p]** możliwość tworzenia potoków o dowolnej długości przy pomocy znaku |
+
 c) **[9p]** historia poleceń - shell przechowuje (w zewnętrznym pliku w katalogu domowym użytkownika - tak że historia powinna "przetrwać" zakończenie shella) dokładną treść 20 poleceń, a wysłanie sygnału SIGINT powoduje wyświetlenie historii na standardowym wyjściu - **uwaga na niuanse związane z obsługą sygnałów !!!**
 
 
