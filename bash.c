@@ -1,11 +1,61 @@
+#define _GNU_SOURCE 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> 
+#include <signal.h>
 #include <unistd.h>
 #include <wait.h>
 
 
+void writeToHistoryFile(char* input)
+{
+    char* cUsr = getenv("USER");
+    char* path;
+    if( 0 > asprintf(&path, "/home/%s/.shHist", cUsr)) // Getting current users command history
+    {
+        printf("Failed to read path!");
+        return;
+    }
+    FILE* histFile = fopen(path, "a"); // Creating file if it doesn't exist
+    if(histFile == NULL)
+    {
+        printf("Failed to open history!");
+        return;
+    }
+    fprintf(histFile, "\n%s", input); // Put input line in the front of the historyFile
+    
 
+    fclose(histFile); // Closing historyFile
+    free(path); // Freeing path after allocing memory by asprintf()
+}
+
+void historyHandler()
+{
+    char* cUsr = getenv("USER");
+    char* path;
+    if( 0 > asprintf(&path, "/home/%s/.shHist", cUsr)) // Getting current users command history
+    {
+        printf("Failed to read path!");
+        return;
+    }
+    FILE* histFile = fopen(path, "a+"); // Opening historyFile
+    if(histFile == NULL)
+    {
+        printf("Failed to open history!");
+        return;
+    }
+
+    char chunk[10000]; // Temporary buffer for reading file
+    
+    printf("\nCommands History:");
+    while(fgets(chunk, sizeof(chunk), histFile) != NULL)
+    {
+        fputs(chunk, stdout); // Printing lines from history file
+    }
+
+    fclose(histFile); // Closing historyFile
+    free(path); // Freeing path after allocing memory by asprintf()
+}
 
 void forkAndExecute(char* args[])
 {
@@ -48,6 +98,7 @@ int cutWithSpace(char * input, char **parameters)
     {
         return -1;
     }
+    writeToHistoryFile(input);
 
     char* prevSeq = NULL;
     char* token = NULL; // Setting up our word buffer
@@ -72,6 +123,8 @@ int cutWithSpace(char * input, char **parameters)
 
 int main()
 {
+    signal(SIGINT, historyHandler); // Changing SIGINT signal behaviour to showing history of commands
+
     char* cDir; // Setting up variable for current directory path
     char* cUsr; // Setting up variable for current user
     char *p; // helper pointer for finding newline char in input
@@ -108,5 +161,7 @@ int main()
         }
     }
 
+    free(input);
+    signal(SIGINT, SIG_DFL); // Changing behaviour of SIGINT signal to its default state
     return 0 ;
 }
