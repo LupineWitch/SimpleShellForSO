@@ -22,7 +22,7 @@ void writeToHistoryFile(char* input)
         printf("Failed to open history!");
         return;
     }
-    fprintf(histFile, "\n%s", input); // Put input line in the front of the historyFile
+    fprintf(histFile,"%s\n", input); // Put input line in the front of the historyFile
     
 
     fclose(histFile); // Closing historyFile
@@ -45,12 +45,23 @@ void historyHandler()
         return;
     }
 
-    char chunk[10000]; // Temporary buffer for reading file
+    int count = 0; // Count of lines in a file
+    char c; // Temporary char storage
+    for (c = getc(histFile); c != EOF; c = getc(histFile)) 
+        if (c == '\n') // Increment count if this character is newline 
+            count = count + 1;
     
-    printf("\nCommands History:");
+    rewind(histFile); // Rewind historyFile to beggining
+    char chunk[10000]; // Temporary buffer for reading file
+    int currLine = 0; // Temporary current line storage
+    printf("\nLast 20 commands history:\n");
     while(fgets(chunk, sizeof(chunk), histFile) != NULL)
     {
-        fputs(chunk, stdout); // Printing lines from history file
+        if((count-currLine)<20) // Print only the 20 last lines
+        {
+            fputs(chunk, stdout); // Printing lines from history file
+        }
+        currLine++;
     }
 
     fclose(histFile); // Closing historyFile
