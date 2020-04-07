@@ -68,8 +68,10 @@ void historyHandler()
     free(path); // Freeing path after allocing memory by asprintf()
 }
 
-void forkAndExecute(char* args[])
+void forkAndExecute(char* args[],int flag)
 {
+     
+
 
     int ProcessID = fork(); //forking existing process
 
@@ -96,14 +98,21 @@ void forkAndExecute(char* args[])
     }
     else
     {
+        if(flag!=0)
+        {
         waitpid(ProcessID,NULL,0); // wait for child to finish
+        }
+        else
+        {
+            return;
+        }
     }
     
 
 
 }
 
-int cutWithSpace(char * input, char **parameters)
+int cutWithSpace(char * input, char **parameters, int* flag)
 {
     if(input == NULL) // If input is empty return error value -1
     {
@@ -123,11 +132,20 @@ int cutWithSpace(char * input, char **parameters)
         token  = strtok_r(NULL, " ", &prevSeq); // Read the next word
         if(token != NULL ) // If it exists
         {
+            if(token[0]!=38) //check for char 38
+            {
             parameters[i] = token ;  // Put it as next argument on our list
+            }
+            else
+            {
+                *flag = 0;
+            }
+
+            
             i++; // Keep track of loop iteration
         }
     }
-
+    
     return 0; // All good
 }
 
@@ -142,11 +160,13 @@ int main()
    // char command[1000]; // Command read from the user input  - obsolete
     char* parameters[1000]; // Arguments of our command read from the user input
     char* input = (char*)malloc(10000*sizeof(char)); // Setting up variable for users input
+    int flag = 1;
 
     int readFlag; // Setting up flag for correct splicing and reading operation
 
     while(1)
     {
+        flag = 1;
         memset(parameters, 0, 1000); // Clearing parameters
         memset(input, 0, 10000); // Clearing input
         p = NULL; //clearing helper pointer
@@ -161,14 +181,14 @@ int main()
              {
                     *p= '\0';
              }
-        readFlag = cutWithSpace(input, parameters); // Splitting users input by spaces on [command] [parameters]
+        readFlag = cutWithSpace(input, parameters,&flag); // Splitting users input by spaces on [command] [parameters]
         if(readFlag == -1){ // If reading input was invalid
             printf("You provided wrong input!\n"); // Display error msg
             continue; // Skip this loop iteration
         } 
         else
         {
-            forkAndExecute(parameters);
+            forkAndExecute(parameters,flag);
         }
     }
 
