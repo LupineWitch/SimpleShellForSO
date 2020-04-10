@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <wait.h>
+#include <fcntl.h>
 
 
 void writeToHistoryFile(char* input)
@@ -68,7 +69,7 @@ void historyHandler()
     free(path); // Freeing path after allocing memory by asprintf()
 }
 
-int CheckForNativeCommands(char** parsedInput)
+int CheckForNativeCommands(char** parsedInput) //self explanatory 
 {
     char* InternalCommands[2];
     InternalCommands[0] = "cd" ;
@@ -99,12 +100,31 @@ int CheckForNativeCommands(char** parsedInput)
 }
 
 
-void forkAndExecute(char* args[],int flag)
+void forkAndExecute(char* args[],int flag,char *filename)
 {
+    int outFileDescriptor = 0;
      
     if(CheckForNativeCommands(args) != 0)
     {
         return;
+    }
+
+    if(((flag >> 3) & 1) == 1)
+    {
+            
+            if(((flag >> 4) & 1) == 1)
+            {
+            outFileDescriptor = open(filename, O_WRONLY | O_APPEND | O_CREAT, S_IRWXG | S_IRWXO | S_IRWXU );
+            }
+            else
+            {
+                outFileDescriptor = open(filename, O_WRONLY | O_TRUNC | O_CREAT, S_IRWXG | S_IRWXO | S_IRWXU );
+            }
+            
+    }
+    if(outFileDescriptor < 0)
+    {
+        printf("Failed to create file %s",filename);
     }
 
     int ProcessID = fork(); //forking existing process
@@ -115,6 +135,11 @@ void forkAndExecute(char* args[],int flag)
     }
     else if(ProcessID == 0)
     {
+        if(((flag >> 3)& 1UL) == 1)
+        {
+            dup2(outFileDescriptor,1);
+            close(outFileDescriptor);
+        }
          /* The execvp uses built array of arguments, the first argument being filename of program being run */
       if( execvp(args[0],args) < 0 ) // chec if exec  failed  
       {
@@ -132,7 +157,11 @@ void forkAndExecute(char* args[],int flag)
     }
     else
     {
-        if(flag!=0)
+        if(((flag >> 3)& 1UL) == 1)
+        {
+            close(outFileDescriptor);
+        }
+        if(((flag >> 1)& 1UL ) == 0 )
         {
         waitpid(ProcessID,NULL,0); // wait for child to finish
         }
@@ -146,7 +175,7 @@ void forkAndExecute(char* args[],int flag)
 
 }
 
-int cutWithSpace(char * input, char **parameters, int* flag, int* pipeFlag, char** parametersPiped)
+int cutWithSpace(char * input, char **parameters, unsigned long int* flag, char** parametersPiped, char* filename) 
 {
     if(input == NULL) // If input is empty return error value -1
     {
@@ -169,10 +198,17 @@ int cutWithSpace(char * input, char **parameters, int* flag, int* pipeFlag, char
             switch (token[0]) // flag setting for pipes and background run
             {
                 case 38: // AMPERSAND
-                *flag = 0;
+                *flag |= 1UL << 1;
                 break;
                 case 124: // pipe
-                *pipeFlag = 1;
+                *flag |= 1UL << 2;
+                break;
+                case 62:
+                *flag |= 1UL << 3;
+                if(token[1]!= '\0' && token[1]!= 0 && token[1]== 62)
+                {
+                    *flag |= 1UL << 4;
+                }
                 break;
                 default:
                 parameters[i]=token;
@@ -180,14 +216,19 @@ int cutWithSpace(char * input, char **parameters, int* flag, int* pipeFlag, char
             }
             i++; // Keep track of loop iteration
         }
-                if(*flag==0 || *pipeFlag == 1) // & should be on the end of imput therefore stop parsing || if pipeflag set should parse another command
+                if(*flag > 0) // & should be on the end of imput therefore stop parsing || if pipeflag set should parse another command
             {
                 break;
             }
     }
+    if(((*flag >> 3) & 1UL == 1))
+    {
+        token = strtok_r(NULL, " ", &prevSeq);
+        strcpy(filename,token);
+    }
     // same as above loop but for another pipe command
     int j = 0;
-    while(token != NULL && *pipeFlag == 1 && j<1000)
+    while(token != NULL && ((*flag >> 2)& 1UL ) == 1  && j<1000)
     {
          token  = strtok_r(NULL, " ", &prevSeq); // Read the next word etc
          if(token != NULL)
@@ -284,6 +325,14 @@ void PipeExecute(char** parameters, char** parameters2)
 
 int main()
 {
+
+    /*Flag Bits control
+    1 - background running
+    2 - pipes
+    3 - Should redirect output?
+    4 - 0/1 trunc/append mode
+    
+    */
     signal(SIGINT, historyHandler); // Changing SIGINT signal behaviour to showing history of commands
 
     char* cDir; // Setting up variable for current directory path
@@ -292,21 +341,17 @@ int main()
    // char command[1000]; // Command read from the user input  - obsolete
     char* parameters[1000]; // Arguments of our command read from the user input
     char* parametersPiped[1000]; // Arguments of piped command read from the previous command output.
+    char* filename = (char*)malloc(10000*sizeof(char));
     char* input = (char*)malloc(10000*sizeof(char)); // Setting up variable for users input
-    int flag = 1; // Should shell wait for process to end?
-    int flagPipe =  0 ; // Should construct pipe rather than regular command ? 
-
-    int readFlag; // Setting up flag for correct splicing and reading operation
+    unsigned long int flag = 0; // BIT control flag
 
     while(1)
     {
-        flag = 1;
+        flag = 0;
         memset(parameters, 0, 1000); // Clearing parameters
         memset(parametersPiped, 0, 1000); // Clearing parameters
         memset(input, 0, 10000); // Clearing input
         p = NULL; //clearing helper pointer
-        readFlag = 0;
-
     // Getting current directory
 
        cDir = get_current_dir_name();
@@ -319,14 +364,14 @@ int main()
              {
                     *p= '\0';
              }
-        readFlag = cutWithSpace(input, parameters,&flag,&flagPipe,parametersPiped); // Splitting users input by spaces on [command] [parameters]
-        if(readFlag == -1){ // If reading input was invalid
+        // Splitting users input by spaces on [command] [parameters]
+        if( cutWithSpace(input, parameters,&flag,parametersPiped,filename) == -1){ // If reading input was invalid
             printf("You provided wrong input!\n"); // Display error msg
             continue; // Skip this loop iteration
         } 
-        else if( flagPipe == 0) 
+        else if( ((flag >> 2)& 1UL ) == 0)
         {
-            forkAndExecute(parameters,flag);
+            forkAndExecute(parameters,flag,filename);
         }
         else
         {
