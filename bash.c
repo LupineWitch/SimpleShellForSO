@@ -74,9 +74,6 @@ int CheckForNativeCommands(char** parsedInput) //self explanatory
     char* InternalCommands[2];
     InternalCommands[0] = "cd" ;
     InternalCommands[1] = "exit";
-
-    
-
   
         if(strcmp(InternalCommands[0],parsedInput[0]) == 0)
         {
@@ -95,8 +92,7 @@ int CheckForNativeCommands(char** parsedInput) //self explanatory
             exit(0);
         }
 
-        return 0;
-    
+        return 0;   
 }
 
 
@@ -114,7 +110,7 @@ void forkAndExecute(char* args[],int flag,char *filename)
             
             if(((flag >> 4) & 1) == 1)
             {
-            outFileDescriptor = open(filename, O_WRONLY | O_APPEND | O_CREAT, S_IRWXG | S_IRWXO | S_IRWXU );
+                outFileDescriptor = open(filename, O_WRONLY | O_APPEND | O_CREAT, S_IRWXG | S_IRWXO | S_IRWXU );
             }
             else
             {
@@ -125,6 +121,7 @@ void forkAndExecute(char* args[],int flag,char *filename)
     if(outFileDescriptor < 0)
     {
         printf("Failed to create file %s",filename);
+        return;
     }
 
     int ProcessID = fork(); //forking existing process
@@ -170,9 +167,6 @@ void forkAndExecute(char* args[],int flag,char *filename)
             return;
         }
     }
-    
-
-
 }
 
 int cutWithSpace(char * input, char **parameters, unsigned long int* flag, char** parametersPiped, char* filename) 
@@ -203,7 +197,7 @@ int cutWithSpace(char * input, char **parameters, unsigned long int* flag, char*
                 case 124: // pipe
                 *flag |= 1UL << 2;
                 break;
-                case 62:
+                case 62: // triangle braces
                 *flag |= 1UL << 3;
                 if(token[1]!= '\0' && token[1]!= 0 && token[1]== 62)
                 {
@@ -238,8 +232,6 @@ int cutWithSpace(char * input, char **parameters, unsigned long int* flag, char*
          }
          
     }
-
-    
     return 0; // All good
 }
 
@@ -282,7 +274,8 @@ void PipeExecute(char** parameters, char** parameters2)
     }
     else //we are in parent
     {
-        
+        waitpid(PID1,NULL,0);
+
         PID2 = fork();
         if(PID2 < 0)
         {
@@ -310,16 +303,9 @@ void PipeExecute(char** parameters, char** parameters2)
         else
         {
             //wait for children to die
-            waitpid(PID1,NULL,0);
             waitpid(PID2,NULL,0);
         }
-        
     }
-    
-    
-
-
-
 }
 
 
