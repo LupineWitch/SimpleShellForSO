@@ -69,13 +69,13 @@ void historyHandler()
     free(path); // Freeing path after allocing memory by asprintf()
 }
 
-int CheckForNativeCommands(char** parsedInput) //self explanatory 
+int CheckForNativeCommands(char** parsedInput,unsigned long int* flag) //self explanatory 
 {
     char* InternalCommands[2];
     InternalCommands[0] = "cd" ;
     InternalCommands[1] = "exit";
 
-    
+
 
   
         if(strcmp(InternalCommands[0],parsedInput[0]) == 0)
@@ -92,7 +92,8 @@ int CheckForNativeCommands(char** parsedInput) //self explanatory
         }
         else if(strcmp(InternalCommands[1],parsedInput[0]) == 0)
         {
-            exit(0);
+           *flag |= 1UL << 5;
+           return 1;
         }
 
         return 0;
@@ -100,19 +101,19 @@ int CheckForNativeCommands(char** parsedInput) //self explanatory
 }
 
 
-void forkAndExecute(char* args[],int flag,char *filename)
+void forkAndExecute(char* args[],unsigned long int* flag,char *filename)
 {
     int outFileDescriptor = 0;
      
-    if(CheckForNativeCommands(args) != 0)
+    if(CheckForNativeCommands(args,flag) != 0)
     {
         return;
     }
 
-    if(((flag >> 3) & 1) == 1)
+    if(((*flag >> 3) & 1) == 1)
     {
             
-            if(((flag >> 4) & 1) == 1)
+            if(((*flag >> 4) & 1) == 1)
             {
             outFileDescriptor = open(filename, O_WRONLY | O_APPEND | O_CREAT, S_IRWXG | S_IRWXO | S_IRWXU );
             }
@@ -135,7 +136,7 @@ void forkAndExecute(char* args[],int flag,char *filename)
     }
     else if(ProcessID == 0)
     {
-        if(((flag >> 3)& 1UL) == 1)
+        if(((*flag >> 3)& 1UL) == 1)
         {
             dup2(outFileDescriptor,1);
             close(outFileDescriptor);
@@ -157,11 +158,11 @@ void forkAndExecute(char* args[],int flag,char *filename)
     }
     else
     {
-        if(((flag >> 3)& 1UL) == 1)
+        if(((*flag >> 3)& 1UL) == 1)
         {
             close(outFileDescriptor);
         }
-        if(((flag >> 1)& 1UL ) == 0 )
+        if(((*flag >> 1)& 1UL ) == 0 )
         {
         waitpid(ProcessID,NULL,0); // wait for child to finish
         }
@@ -282,7 +283,7 @@ void PipeExecute(char** parameters, char** parameters2)
     }
     else //we are in parent
     {
-        
+        waitpid(PID1,NULL,0);   
         PID2 = fork();
         if(PID2 < 0)
         {
@@ -309,8 +310,7 @@ void PipeExecute(char** parameters, char** parameters2)
         }
         else
         {
-            //wait for children to die
-            waitpid(PID1,NULL,0);
+            //wait for children to di
             waitpid(PID2,NULL,0);
         }
         
@@ -331,6 +331,7 @@ int main()
     2 - pipes
     3 - Should redirect output?
     4 - 0/1 trunc/append mode
+    5 - should exit
     
     */
     signal(SIGINT, historyHandler); // Changing SIGINT signal behaviour to showing history of commands
@@ -345,7 +346,7 @@ int main()
     char* input = (char*)malloc(10000*sizeof(char)); // Setting up variable for users input
     unsigned long int flag = 0; // BIT control flag
 
-    while(1)
+    while(((flag >> 5)& 1UL ) == 0)
     {
         flag = 0;
         memset(parameters, 0, 1000); // Clearing parameters
@@ -371,14 +372,15 @@ int main()
         } 
         else if( ((flag >> 2)& 1UL ) == 0)
         {
-            forkAndExecute(parameters,flag,filename);
+            forkAndExecute(parameters,&flag,filename);
         }
         else
         {
             PipeExecute(parameters,parametersPiped);
         }
+    free(cDir);
     }
-
+    free(filename);
     free(input);
     signal(SIGINT, SIG_DFL); // Changing behaviour of SIGINT signal to its default state
     return 0 ;
